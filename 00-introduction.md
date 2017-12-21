@@ -1,70 +1,67 @@
-# BOLT #0: Introduction and Index
+# BOLT #0: Wstęp i spis treści
 
-Welcome, friend! These Basis of Lightning Technology (BOLT) documents
-describe a layer-2 protocol for off-chain bitcoin transfer by mutual
-cooperation, relying on on-chain transactions for enforcement if
-necessary.
+Witaj przyjacielu! Ten dokument
+opisuje protokół drugiej warstwy dla bitcoinowych transakcji off-chain
+poprzez wzajemną kooperację, polegając na transakcjach on-chain jeśli to konieczne
+jako metoda egzekwowania płatności. 
 
-Some requirements are subtle; we have tried to highlight motivations
-and reasoning behind the results you see here. I'm sure we've fallen
-short; if you find any part confusing or wrong, please contact us and
-help us improve.
+Niektóre wymagania są subtelne; staraliśmy się podkreślić motywacje
+i powody które stoją za rezultatami, które widzisz. Jeśli widzisz jakąś
+część dezorientującą lub błędną, proszę skontaktuj się z nami i pomóż ulepszyć dokument.
 
-This is version 0.
+To jest wersja 0.
 
-1. [BOLT #1](01-messaging.md): Base Protocol
-2. [BOLT #2](02-peer-protocol.md): Peer Protocol for Channel Management
-3. [BOLT #3](03-transactions.md): Bitcoin Transaction and Script Formats
-4. [BOLT #4](04-onion-routing.md): Onion Routing Protocol
-5. [BOLT #5](05-onchain.md): Recommendations for On-chain Transaction Handling
-7. [BOLT #7](07-routing-gossip.md): P2P Node and Channel Discovery
-8. [BOLT #8](08-transport.md): Encrypted and Authenticated Transport
-9. [BOLT #9](09-features.md): Assigned Feature Flags
-10. [BOLT #10](10-dns-bootstrap.md): DNS Bootstrap and Assisted Node Location
-11. [BOLT #11](11-payment-encoding.md): Invoice Protocol for Lightning Payments
+1. [BOLT #1](01-messaging.md): Podstawowe dane o protokole
+2. [BOLT #2](02-peer-protocol.md): Protokół P2P oraz zarządzanie kanałami.
+3. [BOLT #3](03-transactions.md): Format bitcoinowych trasakcji oraz skryptów
+4. [BOLT #4](04-onion-routing.md): Protokół routowania cebulowego
+5. [BOLT #5](05-onchain.md): Rekomendacje dotyczace wyłapywania transakcji on-chain
+7. [BOLT #7](07-routing-gossip.md): Wyszukiwanie nodów i kanałów P2P
+8. [BOLT #8](08-transport.md): Encrypted and Authenticated Transport [TODO]
+9. [BOLT #9](09-features.md): Przypisywanie flag dot. funkcjonalności
+10. [BOLT #10](10-dns-bootstrap.md): DNS Bootstrap and Assisted Node Location [TODO]
+11. [BOLT #11](11-payment-encoding.md): Protokół Invoice dla płatności Lightning
 
-## Glossary and Terminology Guide
+## Słowniczek i terminologia
 
 * *Node*:
-   * A computer or other device connected to the Bitcoin network.
+   * Komputer lub inne urządzenie połączone do noda bitcoin.
 
 * *Peers*:
-   * *Nodes* transacting bitcoins with one another through a *channel*.
+   * *Nodey* transferujący bitcoiny między soba przez *kanał*.
 
 * *MSAT*:
-   * A millisatoshi, often used as a field name.
+   * Millisatoshi, zazwyczaj używane jako nazwa pola.
 
 * *Funding transaction*:
-   * An irreversible on-chain transaction that pays to both *peers* on a *channel*.
-   It can only be spent by mutual consent.
+   * Niewycofywalna transakcja on-chain która wysyla środki do obu *peerów* on a *kanale*.
+   Mogą być wydane jedynie za obupólną zgodą.
 
-* *Channel*:
-   * A fast, off-chain method of mutual exchange between two *peers*.
-   To transact funds, peers exchange signatures to create an updated *commitment transaction*.
+* *Kanal*:
+   * Szybka metoda płatności off-chain poprzez obupólną wymianę pomiędzy *peerami*.
+   By dokoncać transakcji, peery wymieniają się podpisami, by stworzyć uaktualnienie do *commitment transaction*.
 
-* *Commitment transaction*:
-   * A transaction that spends the *funding transaction*.
-   Each *peer* holds the other peer's signature for this transaction, so that each
-   always has a commitment transaction that it can spend. After a new
-   commitment transaction is negotiated, the old one is *revoked*.
+* *Transakcja commitment*:
+   * Transakcja, która wydaje *funding transaction*.
+   Każdy *peer* przechowuje podpisdrugiego peera dla tej transakcji, więc
+   każdy z nich zawsze posiada commitment transaction, która może być wydana.
+   Gdy nowa transakcja commitment jest ustalona, stara zostaje *unieważniona*.
 
 * *HTLC*: Hashed Time Locked Contract.
-   * A conditional payment between two *peers*: the recipient can spend
-    the payment by presenting its signature and a *payment preimage*,
-    otherwise the payer can cancel the contract by spending it after
-    a given time. These are implemented as outputs from the
-    *commitment transaction*.
+   * Warunkowa płatność pomiędzy dwoma *peerami*: odbiorca może użyć płatności
+    poprzez zaprezentowanie jej podpisu oraz *preimage*,
+    w przeciwnym razie płatnik może anulować płatność poprzez wydanie jej 
+	po upłynięciu określonego czasu. Są one zaimplementowane jako wyjścia dla
+    *transakcji commitment*.
 
-* *Payment hash*:
-   * The *HTLC* contains the payment hash, which is the hash of the
-    *payment preimage*.
+* *hash płatności*:
+   * Hash płatności zawarty w kontrakcie *HTLC*. Jest to hash z *payment preimage*.
 
 * *Payment preimage*:
-   * Proof that payment has been received, held by
-    the final recipient, who is the only person who knows this
-    secret. The final recipient releases the preimage in order to
-    release funds. The payment preimage is hashed as the *payment hash*
-    in the *HTLC*.
+   * Dowód, że płatność została odebrana, przetrzymywany przez finalnego odbiorcę,
+    który jest jedyna osobą, która zna ten sekret. Zwany też sekretną liczbą R.
+    Finałowy odbiorca ujawnia preimage w celu uwolnienia funduszy.
+    Preimage jest zahsachowany jako *payment hash* in the *HTLC*.
 
 * *Commitment revocation secret key*:
    * Every *commitment transaction* has a unique *commitment revocation* secret-key
@@ -74,52 +71,50 @@ This is version 0.
     commitment transaction refers to the commitment revocation public key.
 
 * *Per-commitment secret*:
-   * Every *commitment transaction* derives its keys from a per-commitment secret,
-     which is generated such that the series of per-commitment secrets
-     for all previous commitments can be stored compactly.
+   * Każda *transakcja commitment* bierze swoje klucze z per-commitment secret, [TODO]
+     która jest generowana tak, że seria per-commitment secrets dla wszystkich wcześniejszych
+     commitmentów może być zapisana w sposób kompaktowy [TODO: shachain?]
 
-* *Mutual close*:
-   * A cooperative close of a *channel*, accomplished by broadcasting an unconditional
+* *Obupólne zamknięcie*:
+   * Zamknięcie *kanału* przy kooperacji obu stron, zakończone rozesłaniem an unconditional
     spend of the *funding transaction* with an output to each *peer*
-    (unless one output is too small, and thus is not included).
+    (unless one output is too small, and thus is not included). [TODO]
 
-* *Unilateral close*:
-   * An uncooperative close of a *channel*, accomplished by broadcasting a
-    *commitment transaction*. This transaction is larger (i.e. less
-    efficient) than a *mutual close* transaction, and the peer whose
-    commitment is broadcast cannot access its own outputs for some
-    previously-negotiated duration.
+* *Jednostronne zamknięcie*:
+   * Zamknięcie *kanału bez porozumienia z druga strona*, zakończone wysłaniem
+    *transakcji commitment*. Ta transakcja jest większa (np. mniej efektywna)
+    niż transakcja *obupólnego zamknięcia* i strona wysylające tą transakcję
+    nie może podjąć swoich środków przez ustalony wcześniej czas.
 
-* *Revoked transaction close*:
-   * An invalid close of a *channel*, accomplished by broadcasting a revoked
-    *commitment transaction*. Since the other *peer* knows the
-    *commitment revocation secret key*, it can create a *penalty transaction*.
+* *Zamknięcie transakcją unieważnioną*:
+   * Nieprawidłowe zamknięcie *kanału*, zakończone wysłaniem unieważnionej
+    *transakcji commitment*. Ponieważ drugi *peer* zna
+    *commitment revocation secret key*, może on zostać użyty do *transakcji karnej*.
 
-* *Penalty transaction*:
-   * A transaction that spends all outputs of a revoked *commitment
-    transaction*, using the *commitment revocation secret key*. A *peer* uses this
-    if the other peer tries to "cheat" by broadcasting a revoked
-    *commitment transaction*.
+* *Transakcja karna*:
+   * Transakcja, która wydaje wszystkie outputy z transakcji unieważnionej, która została
+   zacomitowana, dzięki użyciu *commitment revocation secret key*. *peer* używa jej jeśli
+   drugi peer próbuje go "oszukać" poprzez rozesłanie transakcji unieważnionej.
 
-* *Commitment number*:
-   * A 48-bit incrementing counter for each *commitment transaction*; counters
-    are independent for each *peer* in the *channel* and start at 0.
+* *Numer Commitmentu*:
+   * 48-bitowy licznik, który zwiększa się dla każdej *transakcji commitment*; liczniki są niezależne dla każdego *peera* w *kanale* i startują od 0.
 
-* *It's ok to be odd*:
-   * A rule applied to some numeric fields that indicates either optional or
-     compulsory support for features. Even numbers indicate that both endpoints
+* *Można być nietypowym*: [TODO: Nie rozumiem]
+   * Zasada zastosowana do niektórcyh pól numerycznych która wskazuje na istnienie
+     opcjonalnego lub obowiązkowego wsparcia dla funkcjonalności.
+     Even numbers indicate that both endpoints
      MUST support the feature in question, while odd numbers indicate
      that the feature MAY be disregarded by the other endpoint.
 
 * `chain_hash`:
-   * Used in several of the BOLT documents to denote the genesis hash of a
-     target blockchain. This allows *nodes* to create and reference *channels* on
-     several blockchains. Nodes are to ignore any messages that reference a
-     `chain_hash` that are unknown to them. Unlike `bitcoin-cli`, the hash is
-     not reversed but is used directly.
+   * Użyty w kilku dokumentach BOLT by oznaczyć genesis hash of a
+     target blockchain. To pozwala *nodom* tworzyć i powiązywać *kanały* 
+	na różnych blockchainach. Nody powinny ignorować wszystkie wiadomości, które
+	odwołują się do `chain_hash` który nie jest im znany. W przeciwieństwie do 
+	`bitcoin-cli`, hash nie jest odwrócony, tylko użyty bezpośrednio. [TODO:?]
 
-     For the main chain Bitcoin blockchain, the `chain_hash` value MUST be
-     (encoded in hex):
+     Dla głównego łańcucha Bitcoin, `chain_hash` MUSI wynosić
+     (hexadecymalnie):
      `6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000`.
 
 ## Theme Song
