@@ -2,15 +2,17 @@
 
 ## Overview
 
-This protocol assumes an underlying authenticated and ordered transport mechanism that takes care of framing individual messages.
-[BOLT #8](08-transport.md) specifies the canonical transport layer used in Lightning, though it can be replaced by any transport that fulfills the above guarantees.
+Ten protokół obejmuje fundamentalne mechanizmy autentykacji i transportu, które odpowiadają za
+formowanie indywidualnych wiadomości.
+[BOLT #8](08-transport.md) opisuje w prostej formie warstwę transportu użytą w Lightning, która
+może zostać zastąpiona przez każdą inną metodę transportu, która spełnia opisane poniżej wymagania.
 
-The default TCP port is 9735. This corresponds to hexadecimal `0x2607`: the Unicode code point for LIGHTNING.<sup>[1](#reference-1)</sup>
+Domyślny port TCP to 9735. W zapisie haxadecymalnym `0x2607`: kod znaku błyskawicy w Unicode.<sup>[1](#reference-1)</sup>
 
-All data fields are big-endian unless otherwise specified.
+Wszystkie pola z danymi są big-endian chyba, że zaznaczono inaczej.
 
 ## Table of Contents
-
+[TODO: Przetlumaczyc naglowki]
   * [Connection Handling and Multiplexing](#connection-handling-and-multiplexing)
   * [Lightning Message Format](#lightning-message-format)
   * [Setup Messages](#setup-messages)
@@ -24,73 +26,67 @@ All data fields are big-endian unless otherwise specified.
 
 ## Connection Handling and Multiplexing
 
-Implementations MUST use a single connection per peer; channel messages (which include a channel ID) are multiplexed over this single connection.
+Implementacje MUSZĄ używać pojedynczego połączenia dla każdego peera; channel messages (which include a channel ID) are multiplexed over this single connection. [TODO: Nie rozumiem]
 
-## Lightning Message Format
+## Format Wiadomości Lightning
 
-After decryption, all Lightning messages are of the form:
+Po odszyfrowaniu, wszystkie widomości Lightning mają taką postać:
 
-1. `type`: a 2-byte big-endian field indicating the type of message
-2. `payload`: a variable-length payload that comprises the remainder of
-   the message and that conforms to a format matching the `type`
+1. `type`: 2-bajtowe pole big-endian field oznaczający typ wiadomości
+2. `payload`: ładunek zmiennej długości, który obejmuje pozostałą część wiadomości w formacie pasującym do typu (`type`)
 
-The `type` field indicates how to interpret the `payload` field.
-The format for each individual type is defined by a specification in this repository.
-The type follows the _it's ok to be odd_ rule, so nodes MAY send _odd_-numbered types without ascertaining that the recipient understands it.
+Pole `type` determinuje to, w jaki sposób zinterpretować pole `payload`.
+Format dla każdego indywidualnego typu jest opisany przez specyfikację w tym repozytorium.
+Typy podążąją za zasadją "w porządku być dziwnym", więc nody MOGĄ wysyłać typy o dziwnej numeracji bez ustalania czy odbiorca jest w stanie je zrozumieć.
 
-A sending node:
-  - MUST NOT send an evenly-typed message not listed here without prior negotiation.
+Node wysyłający:
+  - NIE MOŻE wysyłać an evenly-typed messagem która nie jest wylistowana tutaj bez wcześniejszej negocjacji. [TODO: A co z zasadą "w porządku być dziwnym"?
 
-A receiving node:
-  - upon receiving a message of _odd_, unknown type:
-    - MUST ignore the received message.
-  - upon receiving a message of _even_, unknown type:
-    - MUST fail the channels.
+Node odbierający:
+  - w momencie odebrania _odd_ wiadomości, nieznanego typu:
+  	- MUSI zignorować otrzymaną wiadomość
+  - w momencie odebrania _even_ wiadomości, nieznanego typu:
+  	- MUSI fail the channel
+    
 
-The messages are grouped logically into four groups, ordered by the most significant bit that is set:
+Wiadomości są podzielone logicznie na cztery grupy, ułożone od najbardziej znaczącego bita czyli:
 
-  - Setup & Control (types `0`-`31`): messages related to connection setup, control, supported features, and error reporting (described below)
-  - Channel (types `32`-`127`): messages used to setup and tear down micropayment channels (described in [BOLT #2](02-peer-protocol.md))
-  - Commitment (types `128`-`255`): messages related to updating the current commitment transaction, which includes adding, revoking, and settling HTLCs as well as updating fees and exchanging signatures (described in [BOLT #2](02-peer-protocol.md))
-  - Routing (types `256`-`511`): messages containing node and channel announcements, as well as any active route exploration (described in [BOLT #7](07-routing-gossip.md)
+  - Ustawienia i kontrola (typy `0`-`31`): wiadomości związane z ustanawianiem połączenia, kontrolną, wspieranymi funkcjonalnościami i raportowaniem błędów (opisane niżej)
+  - Kanały (typy `32`-`127`): wiadomości używane do ustanawiania i rozwiązywania kanałów mikropłatności (opisane w [BOLT #2](02-peer-protocol.md))
+  - Commitment (typy `128`-`255`): wiadomości związane z aktualizowaniem transakcji commitment, a więc dodawanie, unieważnianie i uregulowywanie HTLCs. Oprócz tego aktualizowanie opłat transakcyjnych (fee) i wymienianie się podpisami (opisane w [BOLT #2](02-peer-protocol.md))
+  - Routing (types `256`-`511`): wiadomości obejmujące powiadomienia z nodów i kanałów, aoraz aktywnej eksploracji ścieżki (opisane w [BOLT #7](07-routing-gossip.md)
 
-The size of the message is required by the transport layer to fit into a 2-byte unsigned int; therefore, the maximum possible size is 65535 bytes.
+Wymaga się by wielkość wiadomości zgodnie z wymaganiami warstwy transportowej musi zmieścić się w wymaganych 2 bajtach nieujemnej liczby całkowitej (unasigned int) Oznacza to, że największa możliwa długość wiadomości jest ograniczona do 65535 bajtów.
 
-A node:
-  - MUST ignore any additional data within a message beyond the length that it expects for that type.
-  - upon receiving a known message with insufficient length for the contents:
-    - MUST fail the channels.
-  - that understands an option in this specification:
-    - MUST include all the fields annotated with that option.
+Wymagania co do noda:
+  - MUSI ignorować wszelkie dodatkowe dane wykraczające poza długość, której oczekuje dla danego typu.
+  - w momencie odebrania znanej wiadomości, której zawartość ma niedostateczną długość:
+  	- MUST fail the channels
+  - that understands an option in this specification: [TODO: Nie jestem pewien czy rozumiem]
+  	- MUST include all the fields annotated with that option.
 
-### Rationale
+### Uzasadnienie
 
-By default `SHA2` and Bitcoin public keys are both encoded as
-big endian, thus it would be unusual to use a different endian for
-other fields.
+Domyślnie `SHA2` oraz publiczne klucze Bitcoina są zakodowane jako
+big endian, więc byłoby nietopowo używać innej kolejności bajtów dla reszty pól.
 
-Length is limited to 65535 bytes by the cryptographic wrapping, and
-messages in the protocol are never more than that length anyway.
+Długość jest limitowana do 65535 bajtów przez kryptograficzną obudówkę (wrapping) i wiadomości w protokole nigdy nie mogą być dłuższe.
 
-The _it's ok to be odd_ rule allows for future optional extensions
-without negotiation or special coding in clients. The "ignore
-additional data" rule similarly allows for future expansion.
+Zasada _w porządku być dziwnym_ pozwala na przyszłe, opcjonalne rozszerzenia bez negocnajcji lub specjalnych zmien klientów. Zasada "zignoruj dodatkowe dane" również pozwala na przyszłe rozszerzenia.
 
-Implementations may prefer to have message data aligned on an 8-byte
-boundary (the largest natural alignment requirement of any type here);
-however, adding a 6-byte padding after the type field was considered
-wasteful: alignment may be achieved by decrypting the message into
-a buffer with 6-bytes of pre-padding.
+Implemetacje moga preferować by dane wiadomości były wyrównane do 8-bajtowych
+obszarów (the largest natural alignment requirement of any type here);
+jednak, dodawanie 6-bajtowego wypełniacza za typem pola zostało uznane za marnotrastwo: wyrównanie może być osiągnięte poprzez odszyfrowanie wiadomości do bufora z 6-bajtowym dopełnieniem.
 
-## Setup Messages
+## Wiadomości ustawień (setup)
 
-### The `init` Message
+### Wiadomość `init`
 
-Once authentication is complete, the first message reveals the features supported or required by this node, even if this is a reconnection.
+Gdy authentykacja jest wykonana, piewsza wiadomość ujawnia funkcjonalności wspierane lub wymagane przez tego noda, nawet jesli doszło jedynie do ponownego połączenia (reconnection).
 
-[BOLT #9](09-features.md) specifies lists of global and local features. Each feature is generally represented in `globalfeatures` or `localfeatures` by 2 bits. The least-significant bit is numbered 0, which is _even_, and the next most significant bit is numbered 1, which is _odd_.
+[BOLT #9](09-features.md) zawiera listę globalnych i lokalnych funkcjonalności. Każda wiadomość jest generalnie reprezentowana jako `globalfeatures` or `localfeatures` przez 2 bity. Najmniej znaczący bit z numerem 0 oznacza _even_, drugi najbardziej znaczący bit z numerem 1 to _odd_.
 
-Both fields `globalfeatures` and `localfeatures` MUST be padded to bytes with 0s.
+Oba pola `globalfeatures` i `localfeatures` MUSZĄ być uzupełnione do pełncyh bajtów zerami.
 
 1. type: 16 (`init`)
 2. data:
@@ -99,38 +95,36 @@ Both fields `globalfeatures` and `localfeatures` MUST be padded to bytes with 0s
    * [`2`:`lflen`]
    * [`lflen`:`localfeatures`]
 
-The 2-byte `gflen` and `lflen` fields indicate the number of bytes in the immediately following field.
+Dwubajtowe pola `gflen` i `lflen` oznaczają liczbę bajtwó pól, które poprzedzają.
 
-#### Requirements
+#### Wymagania
 
-The sending node:
-  - MUST send `init` as the first Lightning message for any connection.
-  - MUST set feature bits as defined in [BOLT #9](09-features.md).
-  - MUST set any undefined feature bits to 0.
-  - SHOULD use the minimum lengths required to represent the feature fields.
+Node wysyłający:
+  - MUSI wysłać `init` jako pierwszą wiadomość Lightning dla każdego połączenia.
+  - MUSI ustawić bity funcjonalności jak zdefiniowano w [BOLT #9](09-features.md).
+  - Dla każdej niezdefiniowanej funkcjonalność MUSI ustawić bit na 0.
+  - POWINIEN użyć minimalnych długości minimum lengths required to represent the feature fields.
 
-The receiving node:
-  - MUST wait to receive `init` before sending any other messages.
-  - MUST respond to known feature bits as specified in [BOLT #9](09-features.md).
-  - upon receiving unknown _odd_ feature bits that are non-zero:
-    - MUST ignore the bit.
-  - upon receiving unknown _even_ feature bits that are non-zero:
-    - MUST fail the connection.
+Node odbierający:
+  - MUSI czekać na odbiór `init` przed wysłaniem jakiejkolwiek innej wiadomości.
+  - MUSI odpowiedzieć na bity znanych funkcjonalności jak opisano w [BOLT #9](09-features.md).
+  - w momencie odebrania, bita funkcjonalności dziwnej (_odd_) które są niezerowe:
+  	- MUSI zignorowac te bity
+  - w momencie odebrania niezerowego bita funkcjonalności _even_:
+  	- MUSI sfailować kanał.
 
-#### Rationale
+#### Uzasadnienie
 
-This semantic allows both future incompatible changes and future backward compatible changes. Bits should generally be assigned in pairs, in order that optional features may later become compulsory.
+Opisana semantyka pozwala zarówno na wprowadzanie przyszłych, niekompatybilnych zmian oraz przyszłych zmian kompatybilnych wstecz. Bity generalnie powinny być przypisywane w parach po to, by opcjonalne funkcjonalności mogły stać się w przyszłości obowiązkowe.
 
-Nodes wait for receipt of the other's features to simplify error
-diagnosis when features are incompatible.
+Nody czekają na potwierdzenie funkcjonalności innych, by uprościć diagnostyke błędów gdy funkcjonalności sa niekompatybilne.
 
-The feature masks are split into local features (which only affect the
-protocol between these two nodes) and global features (which can affect
-HTLCs and are thus also advertised to other nodes).
+Maski funkcjonalności są rozdzielone na funkcjonalności lokalne (dotyczą jedynie protokołu pomiędzy tymi dwoma nodami) oraz funkcjonalności globalne (mogą wpływać na
+HTLCs i są w związk z tym również rozgłaszane do innych nodów).
 
-### The `error` Message
+### Wiadomość `error`
 
-For simplicity of diagnosis, it's often useful to tell a peer that something is incorrect.
+Dla uproszczenia diagnostyki, często bardzo użytecznym jest, by powiedzieć peerowi, że coś jest nie tak.
 
 1. type: 17 (`error`)
 2. data:
@@ -138,25 +132,25 @@ For simplicity of diagnosis, it's often useful to tell a peer that something is 
    * [`2`:`len`]
    * [`len`:`data`]
 
-The 2-byte `len` field indicates the number of bytes in the immediately following field.
+2-bajtowe pole `len` oznacza liczbę bajtów następnego pola "data"
 
-#### Requirements
+#### Wymagania
 
-The channel is referred to by `channel_id`, unless `channel_id` is 0 (i.e. all bytes are 0), in which case it refers to all channels.
+Kanał jest idenstyfikowany poprzez `channel_id`, chyba, że `channel_id` wynosi 0 (wszystkie bajty ustawione na 0). W takim przypadku błąd odnosi się do wszystkich kanałów.
 
-The funding node:
-  - for all error messages sent before (and including) the `funding_created` message:
-    - MUST use `temporary_channel_id` in lieu of `channel_id`.
+Node założycielski (funding node):
+  - dla wszystkich wiadomości o "error" wysłanych przed  (lub w trakcie) wiadomości `funding_created`:
+  	- MUSI użyć tymczasowego ID kanału ('temporary_channel_id') zamiast 'channel_id'.
 
-The fundee node:
-  - for all error messages sent before (and not including) the `funding_signed` message:
-    - MUST use `temporary_channel_id` in lieu of `channel_id`.
+The współzałożycielski (fundee node):
+  - dla wszystkich wiadomości o "error" wysłanych przed  (ale już nie w trakcie)  `funding_signed`:
+  	- MUSI użyć tymczasowego ID kanału ('temporary_channel_id') zamiast 'channel_id'
 
-A sending node:
-  - when sending `error`:
-    - MUST fail the channel referred to by the error message.
-  - SHOULD send `error` for protocol violations or internal errors that make channels unusable or that make further communication unusable.
-  - MAY send an empty `data` field.
+Node wysyłający:
+  - po wysłaniu `error`:
+  	- MUSI sfailować kanał wskazany we wiadomości.
+  - POWINIEN wysłać `error` przy niepoprawnym użyciu protokołu lub błędów wewnętrznych które powodują, że kanał staje się niestabilny lub prowadza do przyszłych niestabilności komunikacji.
+  - MOŻE wysłać puste pole `data`.
   - when failure was caused by an invalid signature check:
     - SHOULD include the raw, hex-encoded transaction in reply to a `funding_created`, `funding_signed`, `closing_signed`, or `commitment_signed` message.
   - when `channel_id` is 0:
