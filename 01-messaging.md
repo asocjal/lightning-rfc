@@ -1,6 +1,6 @@
 # BOLT #1: Base Protocol
 
-## Overview
+## Ogólny zarys
 
 Ten protokół obejmuje fundamentalne mechanizmy autentykacji i transportu, które odpowiadają za
 formowanie indywidualnych wiadomości.
@@ -11,20 +11,20 @@ Domyślny port TCP to 9735. W zapisie haxadecymalnym `0x2607`: kod znaku błyska
 
 Wszystkie pola z danymi są big-endian chyba, że zaznaczono inaczej.
 
-## Table of Contents
-[TODO: Przetlumaczyc naglowki]
-  * [Connection Handling and Multiplexing](#connection-handling-and-multiplexing)
-  * [Lightning Message Format](#lightning-message-format)
-  * [Setup Messages](#setup-messages)
-    * [The `init` Message](#the-init-message)
-    * [The `error` Message](#the-error-message)
-  * [Control Messages](#control-messages)
-    * [The `ping` and `pong` Messages](#the-ping-and-pong-messages)
-  * [Acknowledgments](#acknowledgments)
-  * [References](#references)
-  * [Authors](#authors)
+## Spis treści
 
-## Connection Handling and Multiplexing
+  * [Połączenia](#connection-handling-and-multiplexing)
+  * [Format Wiadomości Lightning](#lightning-message-format)
+  * [Wiadomości Ustawień (Setup)](#setup-messages)
+    * [Wiadomość `init`](#the-init-message)
+    * [Wiadomość `error`](#the-error-message)
+  * [Wiadomości kontroli](#control-messages)
+    * [Wiadomości `ping` i `pong`](#the-ping-and-pong-messages)
+  * [Podziękowania](#acknowledgments)
+  * [Odnośniki](#references)
+  * [Autorzy](#authors)
+
+## Połączenia
 
 Implementacje MUSZĄ używać pojedynczego połączenia dla każdego peera; channel messages (which include a channel ID) are multiplexed over this single connection. [TODO: Nie rozumiem]
 
