@@ -143,47 +143,44 @@ Node założycielski (funding node):
   	- MUSI użyć tymczasowego ID kanału ('temporary_channel_id') zamiast 'channel_id'.
 
 The współzałożycielski (fundee node):
-  - dla wszystkich wiadomości o "error" wysłanych przed  (ale już nie w trakcie)  `funding_signed`:
+  - dla wszystkich wiadomości "error" wysłanych przed  (ale już nie w trakcie)  `funding_signed`:
   	- MUSI użyć tymczasowego ID kanału ('temporary_channel_id') zamiast 'channel_id'
 
 Node wysyłający:
   - po wysłaniu `error`:
   	- MUSI sfailować kanał wskazany we wiadomości.
-  - POWINIEN wysłać `error` przy niepoprawnym użyciu protokołu lub błędów wewnętrznych które powodują, że kanał staje się niestabilny lub prowadza do przyszłych niestabilności komunikacji.
+  - POWINIEN wysłać `error` przy niepoprawnym użyciu protokołu lub błędów wewnętrznych które powodują, że kanał staje się niestabilny lub prowadzą do przyszłych niestabilności komunikacji.
   - MOŻE wysłać puste pole `data`.
-  - when failure was caused by an invalid signature check:
-    - SHOULD include the raw, hex-encoded transaction in reply to a `funding_created`, `funding_signed`, `closing_signed`, or `commitment_signed` message.
-  - when `channel_id` is 0:
-    - MUST fail all channels.
-    - MUST close the connection.
-  - MUST set `len` equal to the length of `data`.
+  - kiedy przyczyną błędu jest nieudane sprawdzanie podpisu:
+  	- POWINIEN dołączyć surową, hex-encded transakcję w odpowiedzi do wiadomości 'funding_created`, `funding_signed`, `closing_signed`, lub `commitment_signed'  
+  - kiedy `channel_id` wynosi 0:
+  	- MUSI sfailować wszystkie kanały
+  	- MUSI zamknąć wszystkie połączenia
+  - MUSI ustawić `len` jako długość (ilość danych) w `data`.
 
-The receiving node:
-  - upon receiving `error`:
-    - MUST fail the channel referred to by the error message.
-  - if no existing channel is referred to by the message:
-    - MUST ignore the message.
-  - MUST truncate `len` to the remainder of the packet (if it's larger).
-  - if `data` is not composed solely of printable ASCII characters (For reference: the printable character set includes byte values 32 through 126, inclusive):
-    - SHOULD NOT print out `data` verbatim.
+Node odbierający:
+  - w omencie otrzymywania wiadomości `error`:
+  	- MUSI sfailować kanał do którego odnosi się wiadomość o błędzie.
+  - jeśli wiadomość nie odnosi się do żadnego istniejącego kanału:
+  	- MUSI zignorować wiadomość.
+  - MUST truncate `len` to the remainder of the packet (if it's larger). [TODO]
+  - jeśli `data` nie składa się jedynie z drukowalnych znaków ASCII (wartości byte z przedziału od 32 do 126 włącznie):
+  	- NIE POWINIEN drukować 'data' wprost
 
-#### Rationale
+#### Uzasadnienie
 
-There are unrecoverable errors that require an abort of conversations;
+Błędy krytyczne wymagają przerwania konwersacji. Jeśli połączenie jest po prostu przerwanem wówczas peer może ponowić połączenie.
 if the connection is simply dropped, then the peer may retry the
-connection. It's also useful to describe protocol violations for
-diagnosis, as this indicates that one peer has a bug.
+connection. Jest to użyteczne, by opisać naruszenie zasad protokołu dla diagnostyki, ponieważ to wskazuje,że peer ma błąd.
 
 It may be wise not to distinguish errors in production settings, lest
-it leak information — hence, the optional `data` field.
+it leak information — hence, the optional `data` field. [TODO]
 
-## Control Messages
+## Wiadomości Kontroli
 
-### The `ping` and `pong` Messages
+### Wiadomości `ping` i `pong`
 
-In order to allow for the existence of very long-lived TCP connections, at
-times it may be required that both ends keep alive the TCP connection at the
-application level. Such messages also allow obfuscation of traffic patterns.
+By możliwe było tworzenie połączeń TCP trwających bardzo długo, od czasu do czasu może być wymagane, by obie strony utrzymały żywe połączenie w warstiwe aplikacji. Takie wiadomości umożliwiają również zaciemnianie wzroców ruchu (traffic patterns).
 
 1. type: 18 (`ping`)
 2. data:
@@ -191,88 +188,67 @@ application level. Such messages also allow obfuscation of traffic patterns.
     * [`2`:`byteslen`]
     * [`byteslen`:`ignored`]
 
-The `pong` message is to be sent whenever a `ping` message is received. It
-serves as a reply and also serves to keep the connection alive, while
-explicitly notifying the other end that the receiver is still active. Within
-the received `ping` message, the sender will specify the number of bytes to be
-included within the data payload of the `pong` message.
+Wiadomość `pong` jest wysyłana gdy odebrano wiadomość `ping`. Służy jako odpowiedź oraz utrzymanie połączenia przy życiu oraz wyraźne poinformowanie drugiej strony, że odbiorca ciągle żyje. W ramach odebranej wiadomości `ping`, wysyłający będzie określał liczbę bajtów, która ma być załączona jako zawartość wiadomości `pong`.
 
 1. type: 19 (`pong`)
 2. data:
     * [`2`:`byteslen`]
     * [`byteslen`:`ignored`]
 
-#### Requirements
+#### Wymagania
 
-A node sending a `ping` message:
-  - SHOULD set `ignored` to 0s.
-  - MUST NOT set `ignored` to sensitive data such as secrets or portions of initialized
-memory.
-  - if it doesn't receive a corresponding `pong`:
-    - MAY terminate the network connection,
-      - and MUST NOT fail the channels in this case.
-  - SHOULD NOT send `ping` messages more often than once every 30 seconds.
+Node wysyłający wiadomość `ping`:
+  - POWINIEN wypełnić pole `ignored` zerami.
+  - NIE MOŻE wypełnić `ignored` wrażliwymi danymi takimi jak np. klucze prywatne czy porcje danych inicjalizacyjnych z pamięci.
+  - jeśli nie odbierze w odpowiedzi wiadomości `pong`:
+  	- MOŻE zerwać połączenie sieciowe
+  		- i MUSI sfailować kanał w tym przypadku
+  - NIE POWINIEN wysyłać wiadomości `ping` częściej niż co 30 sekund.
 
-A node sending a `pong` message:
-  - SHOULD set `ignored` to 0s.
-  - MUST NOT set `ignored` to sensitive data such as secrets or portions of initialized
- memory.
+Node wysyłający wiadomość `pong`:
+  - POWINIEN wypełnić pole `ignored` zerai.
+  - NIE MOŻE wypełnić `ignored` wrażliwymi danymi takimi jak np. klucze prywatne czy porcje danych inicjalizacyjnych z pamięci.
 
-A node receiving a `ping` message:
-  - SHOULD fail the channels if it has received significantly in excess of one `ping` per 30 seconds.
-  - if `num_pong_bytes` is less than 65532:
-    - MUST respond by sending a `pong` message, with `byteslen` equal to `num_pong_bytes`.
-  - otherwise (`num_pong_bytes` is **not** less than 65532):
-    - MUST ignore the `ping`.
+Node odbierający wiadomość `ping`:
+  - POWINIEN sfailować kanał jeśli otrzymał znacznie więcej niż jeden `ping` na 30 sekund.
+  - jeśli `num_pong_bytes` wynosi mniej niż 65532:
+  	- MUSI odpowiedzieć wysyłając wiadomość `pong` z polem 'byteslen' równym polu 'num_pong_bytes'.
+  - w przeciwnym wypadku (`num_pong_bytes` **nie** wynosi mniej niż 65532):
+  	- MUSI zignorować `ping`.
 
-A node receiving a `pong` message:
-  - if `byteslen` does not correspond to any `ping`'s `num_pong_bytes` value it has sent:
-    - MAY fail the channels.
+Node odbierający wiadomość `pong`:
+  - jeśli `byteslen` nie pasuje do pola  `num_pong_bytes` z jakiegokolwiek wysłanego `ping`'a:
+  	- MOŻE sfailować kanał.
 
-### Rationale
+### Uzasadnienie
 
-The largest possible message is 65535 bytes; thus, the maximum sensible `byteslen`
-is 65531 — in order to account for the type field (`pong`) and the `byteslen` itself. This allows
-a convenient cutoff for `num_pong_bytes` to indicate that no reply should be sent.
+Największa możliwa wielkość wiadomości to 65535 bytes; więc maksymalna sensowna wartość pola `byteslen` to 65531 — Ponieważ należy odjąć wielkość pola `pong` i `byteslen`. This allows a convenient cutoff for `num_pong_bytes` to indicate that no reply should be sent. [TODO]
 
-Connections between nodes within the network may be very long lived, as payment
-channels have an indefinite lifetime. However, it's likely that
-no new data will be
-exchanged for a
-significant portion of a connection's lifetime. Also, on several platforms it's possible that Lightning
-clients will be put to sleep without prior warning. Hence, a
-distinct `ping` message is used, in order to probe for the liveness of the connection on
-the other side, as well as to keep the established connection active.
+Połączenia między nodami w ramach sieci mogą trwać bardzo długo, jako że kanały płatności mają niezdefiniowaną długość życia. Jest jednak prawdopodobne, że żadne dane nie będą przesyłane przez istotną część czasu życia połączenia. Poza tym,na niektórych platformach jest możliwe, że klienci Lightning będą przełączane w tryb uśpienia bez uprzedniego streżenia. Dlatego odrębna wiadomość `ping` może być użyta zarówno w celu sprawdzenia, czy druga strona nadal żyje jak i w celu utrzymania połączenia przy życiu.
 
-Additionally, the ability for a sender to request that the receiver send a
-response with a particular number of bytes enables nodes on the network to
-create _synthetic_ traffic. Such traffic can be used to partially defend
-against packet and timing analysis — as nodes can fake the traffic patterns of
-typical exchanges without applying any true updates to their respective
-channels.
+Dodatkowo możliwość wysłania wraz z wiadomością określonej liczby bajtów umożliwia nodom w sieci na tworzenie _syntetycznego_ ruchu. Taki sztuczny ruch może być częściowo użyty przeciwko próbom analizowania ruchu w oparciu o pakiety oraz czasy ich przesyłania. Nody mogą generować sztuczny ruch podobny do tego prawdziwego bez powodowania jakichkolwiek prawdziwych zmian w swoich kanałach.
 
-When combined with the onion routing protocol defined in
+W połączeniu z routwaniem cebulowym zdefiniowanym w
 [BOLT #4](https://github.com/lightningnetwork/lightning-rfc/blob/master/04-onion-routing.md),
-careful statistically driven synthetic traffic can serve to further bolster the
-privacy of participants within the network.
+ostrożnie użyty sztuczny ruch może służyć jako wzmocnienie prywatności uczestników sieci.
 
+Zaleca się ostrożność w stosowaniu komend `ping`, jako że pewna tolerancja powstaje w wyniku opóźnień działania sieci. Zwróć uwagę, że są inne metody na zalewanie ruchu przychodzącego (np. wysyłanie -odd- nieznanych typów wiadomości lub wypełnianie każdej wiadomości maksymalnie)
 Limited precautions are recommended against `ping` flooding, however some
 latitude is given because of network delays. Note that there are other methods
 of incoming traffic flooding (e.g. sending _odd_ unknown message types, or padding
-every message maximally).
+every message maximally). [TODO]
 
-Finally, the usage of periodic `ping` messages serves to promote frequent key
-rotations as specified within [BOLT #8](https://github.com/lightningnetwork/lightning-rfc/blob/master/08-transport.md).
+W końcu, okresowe użycie wiadomości `ping` służy do propagowania częstej rotacji kluczy jak opisano w [BOLT #8](https://github.com/lightningnetwork/lightning-rfc/blob/master/08-transport.md).
 
-## Acknowledgments
+## Podziękowania
 
 [ TODO: (roasbeef); fin ]
 
-## References
+## Odnośniki
 
 1. <a id="reference-2">http://www.unicode.org/charts/PDF/U2600.pdf</a>
 
-## Authors
+## Autorzy
 
 [ FIXME: Insert Author List ]
 
