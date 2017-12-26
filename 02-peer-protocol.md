@@ -88,7 +88,7 @@ Pole `temporary_channel_id` jest używane, by zidentyfikować kanał zanim stwor
 
 `push_msat` to ilość początkowych środków, które wysyłający bezwarunkowo daje odbierającemu.
 
-`dust_limit_satoshis` jest to próg poniżej którego outputy nie powinny być generowane dla tego noda dla transkacji commitment lub GTLC (n.p. HTLC poniżej tej wartości plus opłata transakcyjna HTLC nie są wykonalne on-chain). To odzwierciedla realia, w których malutkie outputy nie są uznane za standardowe transakcje i nie będą propagowane w sieci Bitcoin.
+`dust_limit_satoshis` jest to próg poniżej którego outputy nie powinny być generowane dla tego noda dla transkacji commitment lub HTLC (n.p. HTLC poniżej tej wartości plus opłata transakcyjna HTLC nie są wykonalne on-chain). To odzwierciedla realia, w których malutkie outputy nie są uznane za standardowe transakcje i nie będą propagowane w sieci Bitcoin.
 
 `channel_reserve_satoshis` jest to minimalna wielkość środków, które inny node musi zachować jako bezpośrednią płatność. [TODO: lepiej ubrać w słowa]
 
@@ -107,28 +107,17 @@ side will pay for commitment and HTLC transactions, as described in
 later with an `update_fee` message).
 
 `to_self_delay` is the number of blocks that the other node's to-self
-outputs must be delayed, using `OP_CHECKSEQUENCEVERIFY` delays; this
-is how long it will have to wait in case of breakdown before redeeming
-its own funds.
+outputs must be delayed, using `OP_CHECKSEQUENCEVERIFY` delays; jak długo będzie musiał czekać w razie awarii kanału zanim będzie mógł odzyskać swje środki.
 
 `funding_pubkey` is the public key in the 2-of-2 multisig script of
 the funding transaction output.
 
-The various `_basepoint` fields are used to derive unique
-keys as described in [BOLT #3](03-transactions.md#key-derivation) for each commitment
-transaction. Varying these keys ensures that the transaction ID of
-each commitment transaction is unpredictable to an external observer,
-even if one commitment transaction is seen; this property is very
-useful for preserving privacy when outsourcing penalty transactions to
-third parties.
+Rozmaite pola `_basepoint` są uzyte by określić unikatowe kluczejak opisano w [BOLT #3](03-transactions.md#key-derivation) dla każdej transakcji commitment. Rozróżnienie tych kluczy zapewnia, że ID każdej transakcji commitmentjest nieprzewidywalna dla zewnętrznego obserwatora, nawet jesli jedna transakcja commitment została zauważona; ta właściwość jest bardzo użyteczna dla ochrony bezpieczństwa gdy outsourcujemy trzeciej stronie kwestie transakcji karnych (penalty transactions).
 
 `first_per_commitment_point` is the per-commitment point to be used
 for the first commitment transaction,
 
-Only the least-significant bit of `channel_flags` is currently
-defined: `announce_channel`. This indicates whether the initiator of
-the funding flow wishes to advertise this channel publicly to the
-network, as detailed within [BOLT
+Tylko najmniej istotny bit pola `channel_flags` jest obecnie zdefiniowany: `announce_channel`. Określa, czy założyciel kanału życzy sobie zareklamować ten kanał publicznie w sieci, jak opisano dokładniej w [BOLT
 #7](https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#bolt-7-p2p-node-and-channel-discovery).
 
 The `shutdown_scriptpubkey` allows the sending node to commit to where
@@ -137,69 +126,67 @@ even if a node is compromised later.
 
 [ FIXME: Describe dangerous feature bit for larger channel amounts. ]
 
-#### Requirements
+#### Wymagania
 
-The sending node:
-  - MUST ensure the `chain_hash` value identifies the chain it wishes to open the channel within.
-  - MUST ensure `temporary_channel_id` is unique from any other channel ID with the same peer.
-  - MUST set `funding_satoshis` to less than 2^24 satoshi.
-  - MUST set `push_msat` to equal or less than 1000 * `funding_satoshis`.
-  - MUST set `funding_pubkey`, `revocation_basepoint`, `htlc_basepoint`, `payment_basepoint`, and `delayed_payment_basepoint` to valid DER-encoded, compressed, secp256k1 pubkeys.
+Node wysyłający:
+  - MUSI zagwarantować, że wartość `chain_hash` identyfikuje łańcuch na którym zamierza otworzyć kanał płatności
+  - MUSI zagwarantować, że `temporary_channel_id` jest unikatowy, czyli inny niż reszta kanałów ID od tego samego  peera.
+  - MUSI ustawić `funding_satoshis` na mniej niż 2^24 satoshi.
+  - MUSI ustawić `push_msat` na tyle samo lub mniej niż 1000 * `funding_satoshis`.
+  - MUSI ustawić `funding_pubkey`, `revocation_basepoint`, `htlc_basepoint`, `payment_basepoint` i `delayed_payment_basepoint` jako poprawne DER-encoded, compressed, secp256k1 klucze publiczne.
   - MUST set `first_per_commitment_point` to the per-commitment point to be used for the initial commitment transaction, derived as specified in [BOLT #3](03-transactions.md#per-commitment-secret-requirements).
-  - MUST set undefined bits in `channel_flags` to 0.
-  - if both nodes advertised the `option_upfront_shutdown_script` feature:
-    - MUST include either a valid `shutdown_scriptpubkey` as required by `shutdown` `scriptpubkey`, or a zero-length `shutdown_scriptpubkey`.
-  - otherwise:
-    - MAY include a`shutdown_scriptpubkey`.
+  - MUSI ustawić niezdefiniowane flagi w `channel_flags` na 0.
+  - jeśli oba nody zgłosiły ficzera `option_upfront_shutdown_script`:
+    - MUSI zawrzeć albo poprawny `shutdown_scriptpubkey` tak jak wymagane w `shutdown` `scriptpubkey` lub zerowej długości `shutdown_scriptpubkey`.
+  - w przeciwnym wypadku:
+    - MOŻE zawrzeć `shutdown_scriptpubkey`.
 
-The sending node SHOULD:
-  - set `to_self_delay` sufficient to ensure the sender can irreversibly spend a commitment transaction output, in case of misbehavior by the receiver.
-  - set `feerate_per_kw` to at least the rate it estimates would cause the transaction to be immediately included in a block.
-  - set `dust_limit_satoshis` to a sufficient value to allow commitment transactions to propagate through the Bitcoin network.
-  - set `htlc_minimum_msat` to the minimum value HTLC it's willing to accept from this peer.
+Wysyłający node POWINIEN:
+  - ustawić `to_self_delay` na wartość wystarczającą by zapewnić, że wysyłający może niewycofywalnie wydać output z transakcji w przypadku niewłaściwego zachowania po stronie odbiorcy.
+  - ustawić `feerate_per_kw` na co najmniej tyle, jaka wdług przewidywać powinna być opłata transakcyjna, by transakcja została natychmiast umieszczona w bloku.
+  - ustawić `dust_limit_satoshis` na wartość wystarczającą do tego, żeby transakcje commitment rozpropagowały się w sieci Bitcoin.
+  - ustawić `htlc_minimum_msat` na minimalną wartość HTLC jest w stanie zaakceptować od tego peera.
 
-The receiving node MUST:
-  - ignore undefined bits in `channel_flags`.
-  - if the connection has been re-established after receiving a previous
- `open_channel`, BUT before receiving a `funding_created` message:
-    - accept a new `open_channel` message.
-    - discard the previous `open_channel` message.
+Node odbierający MUSI:
+  - zignorować niezdefiniowane bity w `channel_flags`.
+  - jeśli połączenie zostało ustanowione ponownie po otrzymaniu poprzedniego
+ `open_channel`, ALE przed otrzymaniem wiadomości `funding_created`:
+    - zaakceptuj nową wiadomość `open_channel`.
+    - pozbądź sie poprzedniej wiadomości `open_channel`.
 
-The receiving node MAY fail the channel if:
-  - `announce_channel` is `false` (`0`), yet it wishes to publicly announce the channel.
-  - `funding_satoshis` is too small.
-  - it considers `htlc_minimum_msat` too large.
-  - it considers `max_htlc_value_in_flight_msat` too small.
-  - it considers `channel_reserve_satoshis` too large.
-  - it considers `max_accepted_htlcs` too small.
-  - it considers `dust_limit_satoshis` too small and plans to rely on the sending node publishing its commitment transaction in the event of a data loss (see [message-retransmission](02-peer-protocol.md#message-retransmission)).
+Node odbierający MOŻE sfailować kanał, jeśli:
+  - `announce_channel` wynosi `false` (`0`), a odbiorca chciałby zaanonsowac kanał publicznie.
+  - `funding_satoshis` jest zbyt małe.
+  - uzna że `htlc_minimum_msat` jest zbyt duże.
+  - uzna że `max_htlc_value_in_flight_msat` jest zbyt małe.
+  - uzna że `channel_reserve_satoshis` jest zbyt duże.
+  - uzna że `max_accepted_htlcs` jest zbyt małe.
+  - uzna że `dust_limit_satoshis` too small and plans to rely on the sending node publishing its commitment transaction in the event of a data loss (see [message-retransmission](02-peer-protocol.md#message-retransmission)).
 
-The receiving node MUST fail the channel if:
-  - `push_msat` is greater than `funding_satoshis` * 1000.
-  - `to_self_delay` is unreasonably large.
-  - `max_accepted_htlcs` is greater than 483.
-  - it considers `feerate_per_kw` too small for timely processing or unreasonably large.
-  - `funding_pubkey`, `revocation_basepoint`, `htlc_basepoint`, `payment_basepoint`, or `delayed_payment_basepoint`
-are not valid DER-encoded compressed secp256k1 pubkeys.
+Node odbierający MUSI zfailować kanał jeśli:
+  - `push_msat` jest większy niż `funding_satoshis` * 1000.
+  - `to_self_delay` jest bezpodstawnie duże.
+  - `max_accepted_htlcs` jest większe niż 483.
+  - uzna, że `feerate_per_kw` jest zbyt małe by szybko przetworzyć transakcję lub bezpodstawnie duże.
+  - `funding_pubkey`, `revocation_basepoint`, `htlc_basepoint`, `payment_basepoint` lub `delayed_payment_basepoint`
+nie są prawidłowymi DER-encoded compressed secp256k1 kluczami publicznymi.
 
-The receiving node MUST NOT:
+Node odbierający NIE MOŻE:
   - consider funds received, using `push_msat`, to be received until the funding transaction has reached sufficient depth.
 
-#### Rationale
+#### Uzasadnienie
 
-The *channel reserve* is specified by the peer's `channel_reserve_satoshis`: 1% of the channel total is suggested. Each side of a channel maintains this reserve so it always has something to lose if it were to try to broadcast an old, revoked commitment transaction. Initially, this reserve may not be met, as only one side has funds; but the protocol ensures that there is always progress toward meeting this reserve, and once met, it is maintained.
+*channel reserve* jest określone przez `channel_reserve_satoshis`: sugerowana wartość to 1% łącznej sumy w kanale. Każda strona kanału utrzymuje rezerwę, więc ma zawsze coś do stracenia jeśli jesli spróbuje rozgłosić do sieci Bitcoin starą, wycofaną transakcję commitment. Początkowy wymóg tej rezerwy może nie być spełniony, jeśli jedynie jedna strona ma fundusze; jednak protokół zapewnia, że w takiej sytuacji jest postęp w stronę osiągnięcia tej rezerwy. Gdy osiągnięta, jest już utrzymana. Dopisek od asocjal: Podjrzewam, że chodzi o to, że peer nie może wysyłać środków, gdy rezerwa nie jest spełniona. Może je jedynie odbierać do czasu gdy przekroczy rezerwę. Wówczas może dopiero wysłać tą część srodków, którą ma ponad rezerwę.
 
-The sender can unconditionally give initial funds to the receiver using a non-zero `push_msat` — this is one case where the normal reserve mechanism doesn't apply. However, like any other on-chain transaction, this payment is not certain until the funding transaction has been confirmed sufficiently (with a danger of double-spend until this occurs) and may require a separate method to prove payment via on-chain confirmation.
+Wysyłający może bezwarunkowo dać początkowe fundusze odbierającemu używając niezerowej wartości w polu `push_msat` — this is one case where the normal reserve mechanism doesn't apply. Jednak, jak każda inna transakcja on-chain, ta płatność nie jest pewna do momentu w którym transakcja fundująca (założycielska) nie zostanie wystarczająco potwierdzona (z ryzykiem double-spenda zanim to nastąpi) i może wymagać oddzielnej metody by udowodnić płatność przez potwierdzenie on-chain.
 
 The `feerate_per_kw` is generally only of concern to the sender (who pays the fees), but there is also the fee rate paid by HTLC transactions; thus, unreasonably large fee rates can also penalize the recipient.
 
-Separating the `htlc_basepoint` from the `payment_basepoint` improves security: a node needs the secret associated with the `htlc_basepoint` to produce HTLC signatures for the protocol, but the secret for the `payment_basepoint` can be in cold storage.
+Odseparowanie `htlc_basepoint` od `payment_basepoint` poprawia bezpieczeństwo: node potrzebuje sekretnej wartości powiązanej z `htlc_basepoint` by stworzyc sygnaturę dla HTLC, ale sekretna wartość dla `payment_basepoint` może być trzymana offline (cold storage).
 
-#### Future
+#### Przyszłość
 
-It would be easy to have a local feature bit which indicated that a
-receiving node was prepared to fund a channel, which would reverse this
-protocol.
+Łatwo ozna by było dodać flagę dla lokalnego ficzera wskazującą, że node odbierający jest przygotowany, by ufundować kanał, co mogłoby odwrócić protokół.
 
 ### The `accept_channel` Message
 
