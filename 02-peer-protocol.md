@@ -1,54 +1,38 @@
 # BOLT #2: Peer Protocol for Channel Management
 
-Peer protocol ma 3 fazy: założenie, normalne działanie, zamykanie.
+Peer protocol ma 3 fazy: założenie, działania operacyjne, zamykanie.
 
 # Spis treści
 
   * [Kanał](#channel)
     * [Zakładanie kanału](#channel-establishment)
-      * [The `open_channel` Message](#the-open_channel-message)
-      * [The `accept_channel` Message](#the-accept_channel-message)
-      * [The `funding_created` Message](#the-funding_created-message)
-      * [The `funding_signed` Message](#the-funding_signed-message)
-      * [The `funding_locked` Message](#the-funding_locked-message)
-    * [Channel Close](#channel-close)
-      * [Closing Initiation: `shutdown`](#closing-initiation-shutdown)
-      * [Closing Negotiation: `closing_signed`](#closing-negotiation-closing_signed)
-    * [Normal Operation](#normal-operation)
-      * [Forwarding HTLCs](#forwarding-htlcs)
-      * [`cltv_expiry_delta` Selection](#cltv_expiry_delta-selection)
-      * [Adding an HTLC: `update_add_htlc`](#adding-an-htlc-update_add_htlc)
-      * [Removing an HTLC: `update_fulfill_htlc`, `update_fail_htlc`, and `update_fail_malformed_htlc`](#removing-an-htlc-update_fulfill_htlc-update_fail_htlc-and-update_fail_malformed_htlc)
+      * [Wiadomość `open_channel](#the-open_channel-message)
+      * [Wiadomość `accept_channel`](#the-accept_channel-message)
+      * [Wiadomość `funding_created`](#the-funding_created-message)
+      * [Wiadomość `funding_signed`](#the-funding_signed-message)
+      * [Wiadomość `funding_locked`](#the-funding_locked-message)
+    * [Zamykanie Kanału](#channel-close)
+      * [Inicjalizacja Zamykania: `shutdown`](#closing-initiation-shutdown)
+      * [Negocjacja Zamykania: `closing_signed`](#closing-negotiation-closing_signed)
+    * [Działania Operacyjne](#normal-operation)
+      * [Przekierowanie kontraktów HTLC](#forwarding-htlcs)
+      * [Wybieranie `cltv_expiry_delta`](#cltv_expiry_delta-selection)
+      * [Dodawanie kontraktu HTLC: `update_add_htlc`](#adding-an-htlc-update_add_htlc)
+      * [Usuwanie kontraktu HTLC: `update_fulfill_htlc`, `update_fail_htlc` i `update_fail_malformed_htlc`](#removing-an-htlc-update_fulfill_htlc-update_fail_htlc-and-update_fail_malformed_htlc)
       * [Committing Updates So Far: `commitment_signed`](#committing-updates-so-far-commitment_signed)
       * [Completing the Transition to the Updated State: `revoke_and_ack`](#completing-the-transition-to-the-updated-state-revoke_and_ack)
       * [Updating Fees: `update_fee`](#updating-fees-update_fee)
     * [Message Retransmission](#message-retransmission)
-  * [Authors](#authors)
+  * [Autorzy](#authors)
 
-# Channel
+# Kanały
 
-## Channel Establishment
+## Zakładanie Kanału
 
-Channel establishment begins immediately after authentication and
-consists of the funding node (funder) sending an `open_channel` message,
-followed by the responding node (fundee) sending `accept_channel`. With the
-channel parameters locked in, the funder is able to create the funding
-transaction and both versions of the commitment transaction, as described in
-[BOLT #3](https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#bolt-3-bitcoin-transaction-and-script-formats).
-The funder then sends the outpoint of the funding output with the `funding_created`
-message, along with the signature for the fundee's version of the commitment
-transaction. Once the fundee learns the funding outpoint, it's able to
-generate the funder's commitment for the commitment transaction and send it
-over using the `funding_signed` message.
+Zakładanie kanału zaczyna się natychmiast po autentykacji i polega na tym, że node założycielski (founder) wysyła wiadomość `open_channel`, po czym node odpowiadający (fundee) wysyła wiadomość `accept_channel`. Z zablokowanymi parametrami kanału, node założycielski jest w stanie stworzyć transakcję założycielską oraz obie wersje transakcji commitment, tak jak opisano w [BOLT #3](https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#bolt-3-bitcoin-transaction-and-script-formats).
+Node założycielski wysyła outpoint of the funding output we wiadomości `funding_created`, wraz z podpisem dla transakcji commitment fundowanego. Gdy fundowwany pozna funding outpoint, jest w stanie wygenerować transakcję commitment dla fundatora przy użyciu wiadomości `funding_signed`.
 
-Once the channel funder receives the `funding_signed` message, it
-must broadcast the funding transaction to the Bitcoin network. After
-the `funding_signed` message is sent/received, both sides should wait
-for the funding transaction to enter the blockchain and reach the
-specified depth (number of confirmations). After both sides have sent
-the `funding_locked` message, the channel is established and can begin
-normal operation. The `funding_locked` message includes information
-that will be used to construct channel authentication proofs.
+Gdy fundator kanału otrzyma wiadomość `funding_signed` musi wysłać transakcję założycielską do sieci Bitcoina. Po tym, gdy wiadomość `funding_signed` jest wysłana/odebrana, obie strony powinny zaczekać, aż transakcja założycielska znajdzie się w bloku i osiągnie ustaloną ilość potwierdzeń. Gdy obie strony wyślą wiadomość `funding_locked`, kanał jest założony i można rozpocząć działania operacyjne. Wiadomość `funding_locked` zawiera informacje, które zostaną użyte do zbudowania dowodów autentyfikacji kanałów.
 
 
         +-------+                              +-------+
@@ -62,22 +46,15 @@ that will be used to construct channel authentication proofs.
         |       |<-(6)--- funding_locked  -----|       |
         +-------+                              +-------+
 
-        - where node A is 'funder' and node B is 'fundee'
+        - gdy node A jest założycielem (fundatorem) a node B jest 'fundowanym'
 
-If this fails at any stage, or if one node decides the channel terms
-offered by the other node are not suitable, the channel establishment
-fails.
+Jeśli to sfailuje na jakimkolwiek etapie, lub którykolwiek node zdecyduje, że wrunki założenia kanału oferowane przez drugą stronę są nie do przyjęcia, cały proces zakładania kanału failuje.
 
-Note that multiple channels can operate in parallel, as all channel
-messages are identified by either a `temporary_channel_id` (before the
-funding transaction is created) or a `channel_id` (derived from the
-funding transaction).
+Warto zauważyć, żekanały są zarządzane współbieżnie, więc wszystkie kanały są identyfikowane albo przez `temporary_channel_id` (przed stworzeniem transakcji fundującej) lub przez `channel_id` (otrzymanej z transakcji fundującej).
 
-### The `open_channel` Message
+### Wiadomość `open_channel`
 
-This message contains information about a node and indicates its
-desire to set up a new channel. This is the first step toward creating
-the funding transaction and both versions of the commitment transaction.
+Ta wiadomość zawiera informację o nodzie oraz wyraża chęć założenia nowego kanału. To pierwszy krok w kierunku stworzenia transakcji fundującej oraz obu wersji transakcji commitment.
 
 1. type: 32 (`open_channel`)
 2. data:
@@ -102,29 +79,24 @@ the funding transaction and both versions of the commitment transaction.
    * [`2`:`shutdown_len`] (`option_upfront_shutdown_script`)
    * [`shutdown_len`: `shutdown_scriptpubkey`] (`option_upfront_shutdown_script`)
 
-The `chain_hash` value denotes the exact blockchain that the opened channel will
-reside within. This is usually the genesis hash of the respective blockchain.
-The existence of the `chain_hash` allows nodes to open channels
-across many distinct blockchains as well as have channels within multiple
-blockchains opened to the same peer (if it supports the target chains).
+Vartość `chain_hash` oznacza konkretny blockchain na którym zostanie utworzony kanał. Jest to zazwyczaj początkowy hash (genesis hash) tego blockchaina.
+Istnienie pola `chain_hash` pozwala nodom otwierać kanały pomiędzy różnymi blockchainami jak i również posiadać kanały na wielu blockchainach otwarte dla tego samego peera (jeśli wspiera target chains).
 
-The `temporary_channel_id` is used to identify this channel until the
-funding transaction is established.
+Pole `temporary_channel_id` jest używane, by zidentyfikować kanał zanim stworzona zostanie transakcja fundująca.
 
-`funding_satoshis` is the amount the sender is putting into the
-channel. `push_msat` is an amount of initial funds that the sender is
-unconditionally giving to the receiver. `dust_limit_satoshis` is the
-threshold below which outputs should not be generated for this node's
-commitment or HTLC transactions (i.e. HTLCs below this amount plus
-HTLC transaction fees are not enforceable on-chain). This reflects the
-reality that tiny outputs are not considered standard transactions and
-will not propagate through the Bitcoin network. `channel_reserve_satoshis`
-is the minimum amount that the other node is to keep as a direct
-payment. `htlc_minimum_msat` indicates the smallest value HTLC this
-node will accept.
+`funding_satoshis` to kwota, którą wysyłający wrzuca do kanału.
+
+`push_msat` to ilość początkowych środków, które wysyłający bezwarunkowo daje odbierającemu.
+
+`dust_limit_satoshis` jest to próg poniżej którego outputy nie powinny być generowane dla tego noda dla transkacji commitment lub GTLC (n.p. HTLC poniżej tej wartości plus opłata transakcyjna HTLC nie są wykonalne on-chain). To odzwierciedla realia, w których malutkie outputy nie są uznane za standardowe transakcje i nie będą propagowane w sieci Bitcoin.
+
+`channel_reserve_satoshis` jest to minimalna wielkość środków, które inny node musi zachować jako bezpośrednią płatność. [TODO: lepiej ubrać w słowa]
+
+`htlc_minimum_msat` minimalna wartość w HTLC jaką ten node będzie akceptował.
 
 `max_htlc_value_in_flight_msat` is a cap on total value of outstanding
 HTLCs, which allows a node to limit its exposure to HTLCs; similarly,
+
 `max_accepted_htlcs` limits the number of outstanding HTLCs the other
 node can offer.
 
