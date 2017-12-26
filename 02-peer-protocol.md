@@ -1,12 +1,11 @@
 # BOLT #2: Peer Protocol for Channel Management
 
-The peer channel protocol has three phases: establishment, normal
-operation, and closing.
+Peer protocol ma 3 fazy: założenie, normalne działanie, zamykanie.
 
-# Table of Contents
+# Spis treści
 
-  * [Channel](#channel)
-    * [Channel Establishment](#channel-establishment)
+  * [Kanał](#channel)
+    * [Zakładanie kanału](#channel-establishment)
       * [The `open_channel` Message](#the-open_channel-message)
       * [The `accept_channel` Message](#the-accept_channel-message)
       * [The `funding_created` Message](#the-funding_created-message)
